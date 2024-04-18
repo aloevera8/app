@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- load some libraries -->
+    <script src="/static/lib/jquery-3.3.1/jquery.min.js"></script>
+    <script src="/static/lib/jspsych-6.1.0/jspsych.js"></script>
+    <!-- load some built-in jspsych modules -->
+    <script src="/static/lib/jquery-3.3.1/jquery.min.js"></script>
+    <script src="/static/lib/jspsych-6.1.0/plugins/jspsych-html-keyboard-response.js"></script>
+    <script src="/static/lib/jspsych-6.1.0/plugins/jspsych-survey-text.js"></script>
+    <script src="/static/lib/jspsych-6.1.0/plugins/jspsych-survey-multi-choice.js"></script>
+    <script src="/static/lib/jspsych-6.1.0/plugins/jspsych-fullscreen.js"></script>
+    <link href="/static/lib/jspsych-6.1.0/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+    <!-- load custom plugins to run the task -->
+    <script src="/static/js/turk-timing.js"></script>
+    <script src="/static/js/comprehension-check.js"></script>
+    <script src="/static/js/jspsych-return-data.js"></script>
+    <!-- load some task variables -->
+    <script src="/static/js/turk-timing-images.js"></script>
+    <script src="/static/js/turk-timing-runsheets.js"></script>
+    <script src="/static/js/turk-timing-block-structure.js"></script>
+    <script src="/static/js/turk-timing-instructions.js"></script>
+    <script src="/static/js/turk-timing-survey-text.js"></script>
+  </head>
+  <body></body>
+  <script>
+
+
+  // define welcome message using a built-in jspsych plugin
+  var welcome = {
+    type: "html-keyboard-response",
+    stimulus: "Welcome to the experiment. Press any key to begin."
+  };
+
+  // define begin experiment message message using a built-in jspsych plugin
+  var well_done = {
+    type: "html-keyboard-response",
+    stimulus: "Well done, you got all the questions correct. Press any key to continue with the task."
+  };
+
+  // define block end message using a built-in jspsych plugin
+  var block_end = {
+    type: "html-keyboard-response",
+    stimulus: "End of block. Take a break. and press any key to continue when you are ready.",
+    on_finish: function() {
+      anon.block_counter += 1
+    }
+  };
+
+  var pre_survey = {
+    type: "html-keyboard-response",
+    stimulus: "<p>You have now completed the planet mining task.</p><p>Next, we will ask you to complete a short survey.</p>"
+  };
+
+  // define experiment end message using a built-in jspsych plugin
+  var expt_end = {
+    type: "html-keyboard-response",
+    stimulus: "End of task. Press any key to get the completion code for this HIT."
+  };
+
+  // define functions to turn fullscreen on/off using built-in jspsych plugins
+  var fullscreen_on = {
+    type: "fullscreen",
+    fullscreen_mode: true,
+    message: '<p>The experiment will switch to full screen mode when you press the button below.</p><p>Where possible, please stay in full screen mode for the entire experiment.</p>'
+  };
+  var fullscreen_off = {
+    type: "fullscreen",
+    fullscreen_mode: false
+  };
+
+  // create a global container
+  var anon = {
+    gem_total: 0,
+    block_counter: 1,
+    trial_counter: 0
+  }
+
+
+  // Add variables to timeline in relevant order
+  var timeline = [
+    welcome,                          // display the welcome message
+    fullscreen_on,                    // turn full-screen mode on
+    comprehension_check,              // display instructions and do a comprehension check
+    well_done,                        // post-instruction screen
+    block_1,                          // run the timing task for block 1
+    block_end,                        // display the end-of-block message
+    block_2,                          // run the timing task for block 2
+    block_end,                        // display the end-of-block message
+    block_3,                          // run the timing task for block 3
+    block_end,                        // display the end-of-block message
+    block_4,                          // run the timing task for block 4
+    block_end,                        // display the end-of-block message
+    block_5,                          // run the timing task for block 5
+    block_end,                        // display the end-of-block message
+    block_6,                          // run the timing task for block 6
+    block_end,                        // display the end-of-block message
+    block_7,                          // run the timing task for block 7
+    block_end,                        // display the end-of-block message
+    block_8,                          // run the timing task for block 8
+    block_end,                        // display the end-of-block message
+    block_9,                          // run the timing task for block 9
+    pre_survey,                       // display the end-of-block message
+    bis_survey,                       // BIS survey
+    demographics_survey_partA,        // multi-choice demographic questions
+    demographics_survey_partB,        // free-text demographic and debriefing questions
+    fullscreen_off,                   // turn full-screen mode off
+    expt_end                          // display the experiment end screen
+  ];
+
+  // run the timeline specified above
+  jsPsych.init({
+    timeline: timeline,
+    show_preload_progress_bar: true,
+    preload_images: [gem_images, rune_images, ship_images],  // ask jspsych to preload these images so that there is no lag during the task when they are used for the first time
+    on_finish: function() {                                  // specify a customer function to be executed when the experiment is done
+
+      // add interactions to the data variable
+      var interaction_data = jsPsych.data.getInteractionData();
+      jsPsych.data.get().addToLast({interactions: interaction_data.json()});
+
+      return_data("{{workerId}}", "{{assignmentId}}", "{{hitId}}",  "{{a}}", "{{tp_a}}", "{{b}}", "{{tp_b}}", "{{c}}", "{{tp_c}}");
+    }
+  });
+
+  </script>
+</html>
