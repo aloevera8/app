@@ -231,6 +231,9 @@ jsPsych.plugins['turk-timing'] = (function() {
       left_colour: trial.planet_unselected_colour,
       right_colour: trial.planet_unselected_colour,
       award_gem: false,
+      award_notif: false,
+      max_gems: 0,
+      gems_won: 0,
       ship: true,
       ship_movement_offset: [0,0],
       ship_image: [trial.ship_images[0]],
@@ -393,6 +396,7 @@ jsPsych.plugins['turk-timing'] = (function() {
         rt: response.rt,
         ready_rt: response.ready_rt,
         got_gem: response.got_gem,
+        //points_earned: ,
         reward_start_time: trial.reward_start_time[response.rune_choice],
         response_times: all_response_times
       };
@@ -474,9 +478,19 @@ jsPsych.plugins['turk-timing'] = (function() {
       };
 
       // top gem
-      if (display.award_gem){
-        _DrawStimulus([trial.gem_images[0]], trial.award_gem_offset, trial.award_gem_dimensions);
-      };
+      // if (display.award_gem){
+      //   _DrawStimulus([trial.gem_images[0]], trial.award_gem_offset, trial.award_gem_dimensions);
+      // };
+
+      // reward receipt notification
+      // if (display.award_notif){
+      //   //_DrawStimulus([trial.gem_images[0]], trial.award_gem_offset, trial.award_gem_dimensions);
+      //   ctx.font = "20px Arial";
+      //   ctx.fillStyle = "white";
+      //   ctx.textAlign = "center";
+      //   var info_text = display.gems_won + " out of " + display.max_gems + " gems earned";
+      //   ctx.fillText(info_text, 2 * ctx.measureText(info_text).width / 3, 3* ctx.measureText('M').width/2);
+      // };
 
       // spaceship
       if (display.ship){
@@ -492,7 +506,6 @@ jsPsych.plugins['turk-timing'] = (function() {
       }
 
     }; // end _DrawScreen function
-
 
     function _DrawStimulus(stimulus_array, stimulus_offset, image_dimensions) {
 
@@ -530,6 +543,44 @@ jsPsych.plugins['turk-timing'] = (function() {
 
     } // end _StimulusOnload function
 
+    function _DrawFeedbackScreen(){
+      _DrawBackground();
+
+      if (display.award_notif){
+        ctx.font = "36px Arial";
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        var info_text = display.gems_won + " out of " + display.max_gems + " gems earned";
+        ctx.fillText(info_text, trial.canvas_dimensions[0] / 2, trial.canvas_dimensions[1] / 2);
+      }
+    }
+
+
+    // Scoring function: late responses allowed, but points are discounted exponentially
+    function _lateExpDecay(press_start, press_end, gem_start, gem_end, threshold=500, decay_rate=.5){
+      display.gems_won = 0;
+      response.got_gem[response.got_gem.length - 1] = false;
+      var max_score = display.max_gems;
+      var time_after = gem_end - press_start;
+
+      // press is perfectly within reward window, earns max points
+      if ((press_start <= gem_end) && (gem_start <= press_end)) {
+        display.gems_won = max_score;
+        response.got_gem[response.got_gem.length - 1] = true;
+      }
+
+      // press is after reward window, earns discounted amount of points
+      else if ((press_start > gem_end)) {
+        if (time_after < threshold) {
+          display.gems_won = max_score * Math.pow(decay_rate, time_after)
+          response.got_gem[response.got_gem.length - 1] = true;
+        }
+      }
+
+      // update counter with all gems won
+      anon.gem_total += display.gems_won;
+    }
+
     function _StartTimer(){
 
       var is_final_gem = display.gem_counter == (trial.reward_start_time[response.rune_choice].length - 1)
@@ -541,34 +592,36 @@ jsPsych.plugins['turk-timing'] = (function() {
         callback_function: function(info){
 
           all_response_times.push(info.rt);
-          // if button press is within reward window (after gem appears on-screen but before end of reward window duration), get reward
-          // if (info.rt + accumulated_delay >= (trial.reward_start_time[response.rune_choice][display.gem_counter]) && info.rt + accumulated_delay <= (trial.reward_start_time[response.rune_choice][display.gem_counter] + trial.reward_window_duration)){
-          //   display.award_gem = true;
-          //   response.got_gem[response.got_gem.length - 1] = true;
-          //   console.log('got reward')
-          // }
 
-          // //if final point in button press duration is within reward window, display gem
-          // else if (info.rt + trial.press_duration + accumulated_delay >= (trial.reward_start_time[response.rune_choice][display.gem_counter]) && info.rt + trial.press_duration + accumulated_delay <= (trial.reward_start_time[response.rune_choice][display.gem_counter] + trial.reward_window_duration)){
-            // display.award_gem = true;
-            // response.got_gem[response.got_gem.length - 1] = true;
-            // console.log('got reward')
-          // }
+          var press_start = info.rt + accumulated_delay;
+          var press_end = info + trial.press_duration + accumulated_delay;
+          var gem_start = trial.reward_start_time[response.rune_choice][display.gem_counter];
+          var gem_end = trial.reward_start_time[response.rune_choice][display.gem_counter] + trial.reward_window_duration;
+      
+          display.max_gems = 1;
 
           // once gem is mined, display axe on-screen
           display.pickaxe = true;
-          //console.log(info.rt, trial.press_duration, accumulated_delay, trial.reward_start_time[response.rune_choice][display.gem_counter], trial.reward_start_time[response.rune_choice][display.gem_counter]+trial.reward_window_duration)
+
+          // determine how many gems earned/points scored
+          _lateExpDecay(press_start, press_end, gem_start, gem_end);
+
+          // if gem is on-screen during press, show award notif
+          if (display.left_gem == true || display.right_gem == true) {
+            display.award_notif = true;
+          }
+
+          // show pickaxe on screen, plus reward notif if necessary
           _DrawScreen();
+
+          // set timeout for pickaxe
           jsPsych.pluginAPI.setTimeout(function(){
             display.pickaxe = false;
             _DrawScreen();
           }, trial.press_duration)
-          
-          if (info.rt + accumulated_delay <= (trial.reward_start_time[response.rune_choice][display.gem_counter] + trial.reward_window_duration) 
-          && (trial.reward_start_time[response.rune_choice][display.gem_counter]) <= info.rt + trial.press_duration + accumulated_delay) {
-              display.award_gem = true;
-              response.got_gem[response.got_gem.length - 1] = true;
-          }
+
+          // if gem is not on-screen during press, set award notif flag
+          display.award_notif = true;
         },
         valid_responses: [trial.press_key],
         rt_method: 'performance',
@@ -576,8 +629,6 @@ jsPsych.plugins['turk-timing'] = (function() {
         persist: false,
         allow_held_key: false
       });
-
-      // 
 
       _GemTimerCascade(is_final_gem, trial.reward_start_time[response.rune_choice][display.gem_counter] - accumulated_delay);
 
@@ -606,7 +657,8 @@ jsPsych.plugins['turk-timing'] = (function() {
           jsPsych.pluginAPI.setTimeout(function() {
 
             // clear keyboard listener
-            jsPsych.pluginAPI.cancelAllKeyboardResponses();
+            //jsPsych.pluginAPI.cancelAllKeyboardResponses();
+            jsPsych.pluginAPI.cancelKeyboardResponse(keyboardListener)
 
             // hide gem
             display.left_gem = false;
@@ -623,7 +675,8 @@ jsPsych.plugins['turk-timing'] = (function() {
                 anon.gem_total += 1
               }
 
-              display.award_gem = false;
+              //display.award_gem = false;
+              display.award_notif = false;
               _DrawScreen();
 
               // post-gem-disappearance lull time

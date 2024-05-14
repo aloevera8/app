@@ -22,7 +22,7 @@ var block_1 = {
   randomize_order: false,
   timeline:
   [{
-    type: 'turk-timing',
+    type: 'turk-timing2',
     rune_images: rune_images,
     gem_images: gem_images,
     image_allocation: image_allocation, // uncomment to randomise rune images
